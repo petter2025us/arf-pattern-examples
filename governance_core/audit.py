@@ -17,10 +17,11 @@ SHA-256 and no proprietary machinery of any kind.
 
 **Scope.** This is hash-chaining only -- integrity, not authenticity. It
 detects modification; it does not prove authorship, because anyone who can
-rewrite an entry can recompute the rest of the chain. Real non-repudiation
-needs signatures over the chain head and a key the writer cannot reach.
-ARF does that privately; this file deliberately stops at the portable
-concept, because the portable concept is the part worth teaching.
+rewrite an entry can recompute the rest of the chain. Establishing authorship as well as
+integrity requires signatures, which this file does not implement. How any
+particular product does that is out of scope; this file deliberately
+stops at the portable concept, because the portable concept is the part
+worth teaching.
 """
 from __future__ import annotations
 

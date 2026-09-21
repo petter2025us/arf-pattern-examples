@@ -18,14 +18,11 @@ matters most. Writing first means the worst case is a record of an action
 that did not happen, which is a discrepancy you can find and resolve. The
 other order produces an action nobody can find at all.
 
-**This is an educational simplification.** ARF's real execution-control
-protocol is considerably stronger: the authorization to execute is minted
-only from a durably committed audit entry, it is single-use, its consumption
-is an atomic compare-and-swap against durable state, and an execution whose
-outcome is unknown lands in a reconcilable state rather than being retried.
-None of that is reproduced here, and this file should not be read as a
-description of it. What is reproduced is the ordering principle, which is
-portable, and which most systems get wrong in the cheap direction.
+**This is an educational simplification.** ARF AI's production implementation
+contains additional private controls that are intentionally not reproduced
+here, and this file should not be read as a description of them. What *is*
+reproduced is the ordering principle, which is portable, independently
+useful, and which most systems get wrong in the cheap direction.
 """
 from __future__ import annotations
 

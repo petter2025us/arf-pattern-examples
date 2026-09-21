@@ -1,0 +1,48 @@
+name: CI
+
+# This repository had no workflow, which meant its tests and its IP-boundary
+# guard ran only when somebody remembered. A guard nobody runs is not a
+# guard: it is a file that makes people feel guarded.
+#
+# Both jobs gate every push and pull request. The boundary scan runs
+# separately from the tests so that a failure says which one it was without
+# anyone reading a log.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The boundary scan's --history mode needs every commit, and a
+          # shallow clone would let it report a clean history it never read.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest -q
+
+  ip-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Scan the working tree
+        # Exits non-zero on any finding.
+        run: python tools/ip_boundary_scan.py
+      - name: Report history
+        # Informational: published history cannot be fixed by failing a
+        # build, and rewriting it is a decision rather than a cleanup. This
+        # step makes the state visible on every run instead of depending on
+        # someone re-auditing.
+        run: python tools/ip_boundary_scan.py --history || true

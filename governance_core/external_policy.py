@@ -22,11 +22,10 @@ It also fails in the dangerous direction. An outage in the policy engine
 becomes an outage in *enforcement*, and nothing in the response says so. The
 decision looks identical to one the authoritative engine made.
 
-This is the same shape as a governed executor quietly substituting an
-in-memory simulator for an unreachable provider, or per-process state for a
-durable authority store: a dependency that cannot be reached is replaced by
-something that can, and the substitution is invisible in the output. A
-missing authority is not a permissive authority.
+This is the same shape as any system quietly substituting an in-memory
+stand-in for an unreachable dependency: the thing that cannot be reached is
+replaced by something that can, and the substitution is invisible in the
+output. A missing authority is not a permissive authority.
 
 ## What this does instead
 

@@ -46,7 +46,7 @@ They differ exactly when it matters. Between `execute()` and `log()` there is a 
 
 Reverse the order and the worst case inverts: a record of an action that did not happen. That is a discrepancy — findable by reconciling records against reality, and resolvable. A discrepancy you can find beats a silence you cannot.
 
-This repository implements the ordering and stops there. The stronger property — that the authorization to act is *derived* from the committed record, so acting without a record is structurally impossible rather than merely discouraged — needs durable single-use state and is not reproduced here.
+This repository implements the ordering and stops there. Making the ordering *structurally* unavoidable rather than merely conventional requires additional machinery that this repository does not reproduce and does not describe.
 
 ## Why the policy interface is so small
 

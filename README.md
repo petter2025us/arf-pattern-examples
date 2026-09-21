@@ -1,8 +1,8 @@
 # arf-pattern-examples
 
-A public reference implementation of the deterministic governance pattern used by [ARF AI](https://www.arf-ai.com/): **agents propose actions, policies deterministically decide whether those actions may proceed, and every decision produces a verifiable audit record.**
+A public reference implementation of a deterministic governance pattern: **agents propose actions, policies deterministically decide whether those actions may proceed, and every decision produces a verifiable audit record.**
 
-> **This repository is independent reference code.** It does not contain ARF AI's proprietary decision engine, authority system, execution admission protocol, or enterprise actuators. It demonstrates the *pattern*, not the product — see [What this is not](#what-this-is-not).
+> **This is independent reference code.** It does not reproduce [ARF AI](https://www.arf-ai.com/)'s proprietary engine or its execution-control implementation, and it is not a description of them. The policies and thresholds in `examples/` are **illustrative reference policies**: none of them is an ARF production policy, a canonical ARF rule, or an ARF invariant. This repository exists to demonstrate a governance *pattern* that is useful on its own terms — not to disclose any product's implementation. See [The public/private boundary](#the-publicprivate-boundary).
 
 ```
 agent proposes an action
@@ -57,7 +57,7 @@ evaluate → Decision → AuditLog.append() → execute()
 
 Not *execute, then log if it worked*. Every crash, timeout and process kill between the action and the log produces an action nobody has a record of — and those are precisely the moments a record matters. Writing first means the worst case is a record of an action that did not happen, which is a discrepancy you can find and resolve. The other order produces an action nobody can find at all.
 
-**This is an educational simplification.** ARF's real execution-control protocol is considerably stronger: the authorization to execute is minted only from a durably committed audit entry, it is single-use, its consumption is an atomic compare-and-swap against durable state, and an execution whose outcome is unknown lands in a reconcilable state rather than being retried. None of that is reproduced here. What is reproduced is the ordering principle, which is portable, and which most systems get wrong in the cheap direction.
+**This is an educational simplification.** ARF AI's production implementation contains additional private controls that are intentionally not reproduced here, and this repository should not be read as a description of them. What *is* reproduced is the ordering principle, which is portable, independently useful, and which most systems get wrong in the cheap direction.
 
 ## An unreachable authority is not a permissive one
 
@@ -89,7 +89,7 @@ Each entry contains the hash of the entry before it. Changing any past entry cha
 
 `SHA-256` and nothing else. No proprietary machinery, no key management.
 
-**Scope:** hash-chaining is *integrity*, not *authenticity*. It detects modification; it does not prove authorship, because anyone who can rewrite an entry can recompute the rest of the chain. Real non-repudiation needs signatures over the chain head and a key the writer cannot reach. ARF does that privately; this repository stops at the portable concept on purpose.
+**Scope:** hash-chaining is *integrity*, not *authenticity*. It detects modification; it does not prove authorship, because anyone who can rewrite an entry can recompute the rest of the chain. Establishing authorship as well as integrity requires signatures, which this repository does not implement. How any particular product does that is out of scope here; this repository stops at the portable concept on purpose.
 
 ## Run it
 
@@ -129,9 +129,44 @@ Both were real defects in this repository's own policy code, caught by its own f
 
 **A pattern bug fails open, and silence is the dangerous direction.** A redline whose regex ended in `\b` matched nothing at all, because the token it was meant to catch ended in `%` - a non-word character, so there is no word boundary there for `\b` to find. A rule that matches nothing is indistinguishable from a rule with nothing to catch: it reports success forever. Write at least one fixture that each rule must **catch**, not only fixtures it must permit.
 
+## The public/private boundary
+
+This repository is deliberately one side of a line.
+
+**Public reference layer — everything in this repository:**
+
+- proposal structure
+- deterministic policy evaluation
+- decision semantics: `APPROVE` / `DENY` / `ESCALATE`, with reasons
+- illustrative domain policies
+- audit-integrity demonstration (hash chaining, tamper detection)
+- the fail-closed external-policy pattern
+- one stated [conformance property](docs/conformance-property.md) of the reference infrastructure policy
+
+**Not reproduced here:**
+
+- ARF AI's proprietary risk engine
+- its authority and execution-admission mechanisms
+- its enterprise actuators
+- its internal authorization protocol
+- its private formal specifications
+
+How any of those work is deliberately not described anywhere in this
+repository, and nothing here should be read as a description of them. ARF
+AI's production implementation contains additional private controls that are
+intentionally not reproduced.
+
+The boundary is enforced, not just asserted: `tools/ip_boundary_scan.py`
+fails the build on private identifiers, on phrases that describe a specific
+private mechanism, and on credential shapes — while deliberately permitting
+the ordinary vocabulary of the field, because a guard that rejected the words
+`audit`, `authorization`, `risk` or `policy` would be switched off rather
+than obeyed. `tests/test_ip_boundary.py` proves the guard is armed by
+planting material it must catch.
+
 ## What this is not
 
-- **Not ARF AI's engine.** No Bayesian risk fusion, no epistemic-uncertainty gating, no authority system, no execution admission protocol, no enterprise actuators. Those are proprietary and none of them are here.
+- **Not ARF AI's engine.** ARF AI's proprietary risk engine, authority and execution-admission mechanisms, enterprise actuators, and internal authorization protocol are not reproduced here in any form. How they work is deliberately not described.
 - **Not a risk scorer.** This is a deterministic gate, appropriate for hard redlines. Probabilistic risk estimation is a different job.
 - **Not compliance.** The healthcare and lending examples use invented codes, thresholds and fee names. They are illustrative policy examples, **not legal, medical, clinical, underwriting, financial or regulatory advice**, and nothing here establishes compliance with anything.
 - **Not production software.** It is a reference implementation with tests, not a system running against real decisions.
