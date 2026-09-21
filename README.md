@@ -1,70 +1,125 @@
-# Residential Solar Sales — Governance Gate
+# arf-pattern-examples
 
-**This is an independent project, not ARF AI product collateral.** It's a policy-as-code gate for a residential solar/battery sales pipeline, built using a governance pattern inspired by [ARF AI](https://arf-ai.com)'s approach to AI governance: keep hard business/legal redlines in a deterministic rules engine, never delegated to an LLM's own judgment, and never let a customer-facing claim reach a CRM or a customer without passing a policy gate first.
+A public reference implementation of the deterministic governance pattern used by [ARF AI](https://www.arf-ai.com/): **agents propose actions, policies deterministically decide whether those actions may proceed, and every decision produces a verifiable audit record.**
 
-This repo does not reproduce, expose, or depend on ARF's actual core engine (Bayesian risk fusion, epistemic-uncertainty gating, causal counterfactuals, cryptographic audit trails) — that's proprietary to ARF AI and unrelated to this project. What's here is a self-contained, standalone implementation: a static policy-as-code gate plus an interceptor pattern that wraps it around an LLM proposal generator.
-
-## Status & next steps
-
-**Last updated:** 2026-09-06. **Ground truth:** this is a complete, tested, standalone reference implementation — not wired into any live sales pipeline. 19/19 tests pass. It exists as a worked example and as pilot-conversation collateral, not as production software running against real customer proposals today.
-
-**Next steps, if this gets picked up further:**
-
-1. **Real OPA deployment:** `governance_demo/opa_http_client.py` is written but never exercised against a live OPA sidecar — stand one up (`docker run openpolicyagent/opa`) and confirm `solar_compliance.rego` evaluates identically to `rules.py` on the same fixtures (that parity is currently asserted by convention, not tested automatically).
-2. **Wire to a real LLM:** `SolarSalesPipeline.submit()` takes any `generate_proposal` callable — plugging in an actual model call (Claude, GPT, etc.) instead of the test fixtures in `tests/` would be the first real integration test.
-3. **Extend to the sibling project:** the residential-battery-lease funnel referenced throughout this README (see "Extending this to another vertical" below) has the identical claim-discipline problem this gate solves — porting the pattern there is the most concrete next application, not a new vertical.
-4. **Audit trail persistence:** `GovernanceDecision.audit_hash` is computed but never written anywhere durable — a real deployment needs it logged to storage a compliance review can actually query later, not just returned in-process.
-
-## Why this exists
-
-An LLM drafting a solar/battery sales proposal can produce two kinds of dangerous claims without knowing it's dangerous:
-
-1. **Guaranteed tax-credit language** to a customer with no tax liability to offset — the federal ITC is a credit against tax owed, not a rebate; promising it as guaranteed cash to a zero-liability household is a real compliance problem.
-2. **"Eliminate 100% of your bill"** claims in a NEM 3.0 / avoided-cost territory (California's PG&E, SCE, SDG&E) without a battery attached — under avoided-cost export pricing, solar sent back to the grid is bought at a fraction of retail price, so a no-battery system usually can't back up a 100%-offset claim.
-
-Both are the same category of problem a separate residential-battery-lease sales funnel (same author) has run into repeatedly: an LLM (or a human sales script) asserting something specific and false because it sounds persuasive, not because it's substantiated. This project generalizes that discipline into a reusable gate.
-
-## What's here
+> **This repository is independent reference code.** It does not contain ARF AI's proprietary decision engine, authority system, execution admission protocol, or enterprise actuators. It demonstrates the *pattern*, not the product — see [What this is not](#what-this-is-not).
 
 ```
-policy/solar_compliance.rego       Authoritative policy, written for Open Policy Agent (OPA)
-governance_demo/rules.py           Pure-Python parity mirror - lets tests run with no OPA binary
-governance_demo/pipeline.py        The interceptor: LLM -> gate -> approve/escalate loop
-governance_demo/opa_http_client.py Thin HTTP client for a real OPA sidecar deployment
-tests/test_rules.py                Rule-by-rule tests (19 cases) against the Python mirror
-tests/test_pipeline.py             Pipeline behavior: OPA-present, OPA-unreachable, fail-closed,
-                                    self-correction loop, escalation after retries exhausted
+agent proposes an action
+        │
+        ▼
+  deterministic policy          ← same inputs, same version, same answer
+        │
+   APPROVE / DENY / ESCALATE
+        │
+        ▼
+  audit append (durable)        ← BEFORE anything happens
+        │
+        ▼
+      execute                   ← only on APPROVE
 ```
 
-Run the tests:
+The core claim is that this pipeline does not change between domains. Only the redlines do. Four worked examples run through the identical engine and the identical test runner:
+
+| Domain | The proposed action | What the redlines are about |
+|---|---|---|
+| **[infrastructure](examples/infrastructure/)** | "Delete this production volume" | Reversibility, blast radius, environment, approval |
+| [solar](examples/solar/) | "Send this proposal to this customer" | Claims that are unsubstantiable *for this customer* |
+| [healthcare](examples/healthcare/) | "Approve this prior authorization" | Eligibility rules that must not be a model's judgment call |
+| [lending](examples/lending/) | "Extend this offer at these terms" | Rate ceilings, prohibited fees, affordability |
+
+Start with **infrastructure**. It is the clearest case, because the action is unambiguously consequential: either the volume is deleted or it is not, with no interpretive middle ground about whether an output was "appropriate".
+
+## Why deterministic
+
+Some decisions must never be delegated to a model's judgment. Not because models are bad at judgment, but because a judgment that varies between two identical requests cannot be audited, cannot be appealed, and cannot be shown to a regulator as a rule.
+
+A deterministic policy is a function: same proposal, same context, same policy version, same answer — every time. That property is what makes a decision reviewable six months later.
+
+Policies may be *probabilistic about the world*. A risk model can produce a score; the policy then applies a fixed threshold to it. The score can be uncertain. The comparison must not be.
+
+## The three outcomes
+
+`APPROVE`, `DENY`, `ESCALATE` — ARF's vocabulary, used here for the same reason it exists there.
+
+`ESCALATE` is not a softer `DENY`. It means the policy established that it is **not the right authority** to decide: an input is missing, or the action is above the bar this policy may clear alone. Collapsing it into `DENY` destroys the distinction between *this is forbidden* and *this needs a person*, and that distinction is the whole of what a reviewer needs in order to act.
+
+The examples lean on it deliberately:
+
+- Infrastructure: reversibility could not be established → `ESCALATE`. **Not knowing whether an action can be undone is not evidence that it can.**
+- Healthcare: clinical documentation missing → `ESCALATE`, never `DENY`. A filing gap is an unanswered question, not an ineligible request. Denying there refuses care for paperwork.
+- Lending: affordability inputs absent → `ESCALATE`. An unassessed offer is neither safe nor refused.
+
+## Ordering: record, then act
+
+```
+evaluate → Decision → AuditLog.append() → execute()
+```
+
+Not *execute, then log if it worked*. Every crash, timeout and process kill between the action and the log produces an action nobody has a record of — and those are precisely the moments a record matters. Writing first means the worst case is a record of an action that did not happen, which is a discrepancy you can find and resolve. The other order produces an action nobody can find at all.
+
+**This is an educational simplification.** ARF's real execution-control protocol is considerably stronger: the authorization to execute is minted only from a durably committed audit entry, it is single-use, its consumption is an atomic compare-and-swap against durable state, and an execution whose outcome is unknown lands in a reconcilable state rather than being retried. None of that is reproduced here. What is reproduced is the ordering principle, which is portable, and which most systems get wrong in the cheap direction.
+
+## The audit trail, demonstrated
+
+Each entry contains the hash of the entry before it. Changing any past entry changes its hash, which breaks every hash after it.
+
+`tests/test_audit.py` shows this rather than asserting it:
+
+1. Write three decisions → `verify()` passes
+2. Edit entry #2 on disk, flipping a `DENY` to an `APPROVE` → `verify()` **fails**, and `first_broken_index()` returns `1`
+3. Also fix that entry's own hash → still fails, at index `2`. The break moves down; covering it up fully means rewriting every subsequent entry.
+
+`SHA-256` and nothing else. No proprietary machinery, no key management.
+
+**Scope:** hash-chaining is *integrity*, not *authenticity*. It detects modification; it does not prove authorship, because anyone who can rewrite an entry can recompute the rest of the chain. Real non-repudiation needs signatures over the chain head and a key the writer cannot reach. ARF does that privately; this repository stops at the portable concept on purpose.
+
+## Run it
 
 ```bash
-pip install pytest
-python -m pytest tests/ -v
+pip install -e ".[dev]"
+python -m pytest -q
 ```
 
-All 19 tests pass without an OPA binary installed — `rules.py` is the local fallback evaluator, and it's what the pipeline actually calls when no OPA sidecar is configured.
+Everything runs offline. No API key, no model call, no network, no OPA binary — a reference implementation you cannot execute is a blog post.
 
-## A real bug this caught, worth keeping in mind
+## Layout
 
-The original draft of the "guarantee language" detector flagged _any_ mention of a dollar sign or "30%" as a guarantee claim. That's wrong: it would have blocked the exact hedged, compliant rewrite the policy exists to force an LLM toward — _"you may qualify for up to a 30% Federal ITC, depending on your personal tax liability"_ legitimately mentions both a dollar-adjacent figure and "30%," and is not a guarantee. Fixed by narrowing the regex to phrases that assert certainty (`guarantee`, `you will receive`, `will get back`) rather than any adjacent number. See `test_hedged_tax_credit_language_is_not_blocked` and `test_unhedged_dollar_guarantee_is_still_blocked` in `tests/test_rules.py` — both cases are now covered so this can't silently regress.
+```
+governance_core/
+  decision.py         Outcome, Decision, canonical hashing
+  policy_interface.py The Policy protocol — the one thing a domain implements
+  audit.py            Hash-chained log: InMemoryAuditLog, FileAuditLog
+  engine.py           The interceptor, and the optional revision loop
+  llm_adapter.py      Where a proposal generator plugs in
 
-## Fail-safe behavior
+examples/<domain>/
+  policy.py           The redlines
+  fixtures.json       Proposals, expected outcomes, and why
+  test_policy.py      Identical in every domain
 
-`GovernanceEngine` never fails open. If an OPA sidecar is configured but unreachable:
+docs/
+  bring-your-own-policy.md   Adding your own domain
+  design-rationale.md        Why the pattern is shaped this way
+```
 
-- **Default:** falls back to the local Python evaluator (same rules, logged as a warning)
-- **`fail_closed=True`:** blocks the proposal outright rather than trusting a possibly-stale local mirror
+`examples/solar/policy.rego` expresses the same solar redlines in Rego, to show the pattern does not depend on a policy language. The Python policy is what the tests run.
 
-Choose `fail_closed=True` for a production deployment where the Rego policy might be updated independently of this package's release cycle — that's the scenario where the local mirror could silently drift out of sync with the authoritative policy.
+## Two bugs worth keeping
+
+Both are in the repository because a pattern library that hides its own near-misses reads as marketing.
+
+**An over-broad redline is not "safely strict."** The first guarantee detector flagged any mention of a dollar sign or "30%". That would have blocked the exact hedged rewrite the policy exists to produce — *"you may qualify for up to a 30% Federal ITC, depending on your personal tax liability"* mentions a percentage and guarantees nothing. Fixed by matching phrases that assert certainty rather than any adjacent number. An over-broad rule trains everyone around it to route past the gate.
+
+**A pattern bug fails open, and silence is the dangerous direction.** The full-bill-elimination regex ended in `\b` — but `100%` ends in a non-word character, so there is no word boundary there and the branch never matched anything. The test suite caught it on the first run. In a deployment without that fixture, it would have looked like a working redline while permitting every claim it was written to stop.
 
 ## What this is not
 
-- Not affiliated with, endorsed by, or built on ARF AI's proprietary software — it's an independent implementation of a similar governance pattern, nothing more.
-- Not a full risk-scoring engine — this is a static deterministic gate, appropriate for hard business/legal redlines, not for probabilistic risk scoring.
-- Not wired into any live sales pipeline yet. This is a standalone, tested reference implementation.
-- Not a claim that OPA/Rego is required — the pattern (deterministic gate, LLM self-correction loop, audit hash) is what matters; the Rego file is one legitimate implementation of it.
+- **Not ARF AI's engine.** No Bayesian risk fusion, no epistemic-uncertainty gating, no authority system, no execution admission protocol, no enterprise actuators. Those are proprietary and none of them are here.
+- **Not a risk scorer.** This is a deterministic gate, appropriate for hard redlines. Probabilistic risk estimation is a different job.
+- **Not compliance.** The healthcare and lending examples use invented codes, thresholds and fee names. They are illustrative policy examples, **not legal, medical, clinical, underwriting, financial or regulatory advice**, and nothing here establishes compliance with anything.
+- **Not production software.** It is a reference implementation with tests, not a system running against real decisions.
 
-## Extending this to another vertical
+## License
 
-The pattern generalizes past solar: define the redlines that must never be LLM-judgment calls (price floors, regulated claim language, jurisdiction-specific rules), express them as a small set of deterministic checks, and wrap the LLM's output in the same evaluate -> allow/block -> feedback-and-retry -> escalate loop. A residential-battery-lease sales funnel (separate project, same author) has an equivalent claim-discipline problem — no bill-savings numbers, no un-confirmed incentive figures — and could use the identical pipeline structure.
+Apache-2.0. See [LICENSE](LICENSE).

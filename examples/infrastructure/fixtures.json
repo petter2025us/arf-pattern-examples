@@ -1,0 +1,82 @@
+{
+  "_comment": "Proposals an agent might make. Each names the outcome the policy must reach and why, so the fixture file doubles as a readable statement of the redlines.",
+  "cases": [
+    {
+      "name": "routine staging resize",
+      "proposal": {"action": "resize_volume", "environment": "staging", "resource_id": "fsvol-aaa", "blast_radius": 1, "reversibility": "REVERSIBLE"},
+      "context": {},
+      "expect": "APPROVE",
+      "because": "exactly reversible, one resource, non-production"
+    },
+    {
+      "name": "snapshot deletion in production",
+      "proposal": {"action": "delete_snapshot", "environment": "production", "resource_id": "snap-bbb", "blast_radius": 1, "reversibility": "REVERSIBLE"},
+      "context": {},
+      "expect": "DENY",
+      "because": "a snapshot is a point in time and cannot be recreated; the proposal's own REVERSIBLE claim is overridden by the action class"
+    },
+    {
+      "name": "reversibility could not be established",
+      "proposal": {"action": "detach_policy", "environment": "production", "resource_id": "role-ccc", "blast_radius": 1, "reversibility": null},
+      "context": {},
+      "expect": "ESCALATE",
+      "because": "not knowing whether it can be undone is not evidence that it can"
+    },
+    {
+      "name": "over-broad production change",
+      "proposal": {"action": "restart_service", "environment": "production", "resource_id": "svc-*", "blast_radius": 40, "reversibility": "REVERSIBLE"},
+      "context": {},
+      "expect": "DENY",
+      "because": "40 resources exceeds the production ceiling of 5, even though each restart is individually reversible"
+    },
+    {
+      "name": "same change, staging",
+      "proposal": {"action": "restart_service", "environment": "staging", "resource_id": "svc-*", "blast_radius": 40, "reversibility": "REVERSIBLE"},
+      "context": {},
+      "expect": "APPROVE",
+      "because": "identical action, different authority regime"
+    },
+    {
+      "name": "compensable production delete, unapproved",
+      "proposal": {"action": "delete_volume", "environment": "production", "resource_id": "fsvol-ddd", "blast_radius": 1, "reversibility": "COMPENSABLE"},
+      "context": {"approvals": []},
+      "expect": "ESCALATE",
+      "because": "a final backup restores the data but the restored volume has a new id, so every mount referencing the old one breaks"
+    },
+    {
+      "name": "compensable production delete, approved",
+      "proposal": {"action": "delete_volume", "environment": "production", "resource_id": "fsvol-ddd", "blast_radius": 1, "reversibility": "COMPENSABLE"},
+      "context": {"approvals": [{"approver": "sre-oncall", "at": "2026-09-21T09:00:00Z"}]},
+      "expect": "APPROVE",
+      "because": "a human accepted the identity loss; the approval came from context, not from the proposal"
+    },
+    {
+      "name": "agent asserts its own approval",
+      "proposal": {"action": "delete_volume", "environment": "production", "resource_id": "fsvol-eee", "blast_radius": 1, "reversibility": "COMPENSABLE", "approved": true, "approved_by": "agent-self"},
+      "context": {"approvals": []},
+      "expect": "ESCALATE",
+      "because": "the proposal's self-asserted approval is ignored; authority is read from context only"
+    },
+    {
+      "name": "blast radius not supplied",
+      "proposal": {"action": "restart_service", "environment": "production", "resource_id": "svc-fff", "reversibility": "REVERSIBLE"},
+      "context": {},
+      "expect": "ESCALATE",
+      "because": "the ceiling cannot be applied to an unknown count"
+    },
+    {
+      "name": "unknown environment gets the strictest ceiling",
+      "proposal": {"action": "restart_service", "environment": "prodction", "resource_id": "svc-ggg", "blast_radius": 10, "reversibility": "REVERSIBLE"},
+      "context": {},
+      "expect": "DENY",
+      "because": "a typo in the environment name must not buy the loosest ceiling"
+    },
+    {
+      "name": "outside the declared change window",
+      "proposal": {"action": "restart_service", "environment": "production", "resource_id": "svc-hhh", "blast_radius": 1, "reversibility": "REVERSIBLE"},
+      "context": {"change_window_open": false},
+      "expect": "ESCALATE",
+      "because": "timing is a human call, and the window state comes from context"
+    }
+  ]
+}

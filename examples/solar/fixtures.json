@@ -1,0 +1,208 @@
+{
+  "_comment": "Customer-facing solar proposals. The hedged-vs-guaranteed pair is the important one -- see the module docstring in policy.py.",
+  "cases": [
+    {
+      "name": "compliant hedged proposal",
+      "proposal": {
+        "pricing": {
+          "price_per_watt": 3.4,
+          "dealer_fee_percent": 18.0
+        },
+        "customer": {
+          "utility_provider": "PG&E",
+          "estimated_tax_liability": 9000
+        },
+        "system_design": {
+          "has_battery_storage": true
+        },
+        "claims": [
+          {
+            "text": "You may qualify for up to a 30% Federal ITC, depending on your personal tax liability."
+          }
+        ]
+      },
+      "context": {},
+      "expect": "APPROVE",
+      "because": "mentions 30% and a credit but asserts no certainty -- this is the rewrite the policy exists to produce, and an over-broad rule would have blocked it"
+    },
+    {
+      "name": "guaranteed credit to a zero-liability household",
+      "proposal": {
+        "pricing": {
+          "price_per_watt": 3.4,
+          "dealer_fee_percent": 18.0
+        },
+        "customer": {
+          "utility_provider": "PG&E",
+          "estimated_tax_liability": 0
+        },
+        "system_design": {
+          "has_battery_storage": true
+        },
+        "claims": [
+          {
+            "text": "You are guaranteed a 30% tax credit back on this system."
+          }
+        ]
+      },
+      "context": {},
+      "expect": "DENY",
+      "because": "the ITC offsets tax owed and this household owes none"
+    },
+    {
+      "name": "full-offset claim, no battery, avoided-cost territory",
+      "proposal": {
+        "pricing": {
+          "price_per_watt": 3.4,
+          "dealer_fee_percent": 18.0
+        },
+        "customer": {
+          "utility_provider": "SCE",
+          "estimated_tax_liability": 9000
+        },
+        "system_design": {
+          "has_battery_storage": false
+        },
+        "claims": [
+          {
+            "text": "This system will eliminate 100% of your electricity bill."
+          }
+        ]
+      },
+      "context": {},
+      "expect": "DENY",
+      "because": "exports are bought at avoided cost, so a no-battery system cannot support the claim"
+    },
+    {
+      "name": "same claim with a battery attached",
+      "proposal": {
+        "pricing": {
+          "price_per_watt": 3.9,
+          "dealer_fee_percent": 18.0
+        },
+        "customer": {
+          "utility_provider": "SCE",
+          "estimated_tax_liability": 9000
+        },
+        "system_design": {
+          "has_battery_storage": true
+        },
+        "claims": [
+          {
+            "text": "This system will eliminate 100% of your electricity bill."
+          }
+        ]
+      },
+      "context": {},
+      "expect": "APPROVE",
+      "because": "the redline is about substantiation, not vocabulary"
+    },
+    {
+      "name": "price above ceiling",
+      "proposal": {
+        "pricing": {
+          "price_per_watt": 6.1,
+          "dealer_fee_percent": 18.0
+        },
+        "customer": {
+          "utility_provider": "PG&E",
+          "estimated_tax_liability": 9000
+        },
+        "system_design": {
+          "has_battery_storage": true
+        },
+        "claims": []
+      },
+      "context": {},
+      "expect": "DENY",
+      "because": "above the $5.20/W ceiling"
+    },
+    {
+      "name": "dealer fee above cap",
+      "proposal": {
+        "pricing": {
+          "price_per_watt": 3.4,
+          "dealer_fee_percent": 31.0
+        },
+        "customer": {
+          "utility_provider": "PG&E",
+          "estimated_tax_liability": 9000
+        },
+        "system_design": {
+          "has_battery_storage": true
+        },
+        "claims": []
+      },
+      "context": {},
+      "expect": "DENY",
+      "because": "above the 25% dealer-fee cap"
+    },
+    {
+      "name": "tax liability unknown",
+      "proposal": {
+        "pricing": {
+          "price_per_watt": 3.4,
+          "dealer_fee_percent": 18.0
+        },
+        "customer": {
+          "utility_provider": "PG&E"
+        },
+        "system_design": {
+          "has_battery_storage": true
+        },
+        "claims": [
+          {
+            "text": "You are guaranteed a 30% tax credit."
+          }
+        ]
+      },
+      "context": {},
+      "expect": "ESCALATE",
+      "because": "a missing input is a question for a human, not a violated redline"
+    },
+    {
+      "name": "full-offset claim outside avoided-cost territory",
+      "proposal": {
+        "pricing": {
+          "price_per_watt": 3.4,
+          "dealer_fee_percent": 18.0
+        },
+        "customer": {
+          "utility_provider": "Xcel",
+          "estimated_tax_liability": 9000
+        },
+        "system_design": {
+          "has_battery_storage": false
+        },
+        "claims": [
+          {
+            "text": "This system will eliminate 100% of your electricity bill."
+          }
+        ]
+      },
+      "context": {},
+      "expect": "APPROVE",
+      "because": "the redline is tied to avoided-cost export pricing, not to the phrase -- a full-retail-credit territory can support the claim without a battery"
+    },
+    {
+      "name": "price below floor",
+      "proposal": {
+        "pricing": {
+          "price_per_watt": 1.8,
+          "dealer_fee_percent": 18.0
+        },
+        "customer": {
+          "utility_provider": "PG&E",
+          "estimated_tax_liability": 9000
+        },
+        "system_design": {
+          "has_battery_storage": true
+        },
+        "claims": []
+      },
+      "context": {},
+      "expect": "DENY",
+      "because": "below the $2.60/W floor, which cannot cover install cost -- a redline that protects the customer from a job that gets abandoned, not just from overcharging"
+    }
+  ]
+}

@@ -1,16 +1,23 @@
 [project]
-name = "residential-solar-governance-demo"
-version = "0.1.0"
-description = "Worked example: deterministic policy-as-code gate for a residential solar/battery sales pipeline"
+name = "arf-pattern-examples"
+version = "1.0.0"
+description = "Public reference implementation of the deterministic governance pattern used by ARF AI: propose, decide, record, execute."
 requires-python = ">=3.10"
-dependencies = [
-    "requests>=2.31",
-]
+license = { text = "Apache-2.0" }
+# No runtime dependencies, on purpose. Everything here runs on the standard
+# library so the examples execute offline with no API key, no network and no
+# policy-engine binary. `requests` was dropped with the OPA HTTP client it
+# served -- examples/solar/policy.rego stays as an illustration that the
+# pattern does not depend on a policy language, but nothing evaluates it here.
+dependencies = []
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["governance_core*", "examples*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# Both roots: the core contracts in tests/, and the per-domain fixtures that
+# live beside the policies they exercise.
+testpaths = ["tests", "examples"]

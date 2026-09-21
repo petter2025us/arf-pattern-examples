@@ -1,0 +1,74 @@
+{
+  "_comment": "Illustrative only -- invented ceilings and fee names. Not legal, financial, underwriting or regulatory advice.",
+  "cases": [
+    {
+      "name": "conforming offer",
+      "proposal": {
+        "apr_percent": 12.5,
+        "fees": [
+          "origination"
+        ],
+        "debt_to_income": 0.31
+      },
+      "context": {},
+      "expect": "APPROVE",
+      "because": "under the ceiling, no prohibited fee, affordability assessed"
+    },
+    {
+      "name": "APR above ceiling",
+      "proposal": {
+        "apr_percent": 34.0,
+        "fees": [],
+        "debt_to_income": 0.2
+      },
+      "context": {},
+      "expect": "DENY",
+      "because": "above the configured 29.99% ceiling"
+    },
+    {
+      "name": "prohibited fee present",
+      "proposal": {
+        "apr_percent": 11.0,
+        "fees": [
+          "origination",
+          "prepayment_penalty"
+        ],
+        "debt_to_income": 0.2
+      },
+      "context": {},
+      "expect": "DENY",
+      "because": "a prohibited fee may not appear at any rate"
+    },
+    {
+      "name": "affordability inputs missing",
+      "proposal": {
+        "apr_percent": 11.0,
+        "fees": []
+      },
+      "context": {},
+      "expect": "ESCALATE",
+      "because": "an unassessed offer is neither safe nor refused"
+    },
+    {
+      "name": "debt-to-income above threshold",
+      "proposal": {
+        "apr_percent": 11.0,
+        "fees": [],
+        "debt_to_income": 0.55
+      },
+      "context": {},
+      "expect": "ESCALATE",
+      "because": "compensating factors are a human judgment"
+    },
+    {
+      "name": "rate missing",
+      "proposal": {
+        "fees": [],
+        "debt_to_income": 0.2
+      },
+      "context": {},
+      "expect": "ESCALATE",
+      "because": "nothing to compare against the ceiling"
+    }
+  ]
+}

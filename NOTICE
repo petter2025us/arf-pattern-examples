@@ -1,0 +1,10 @@
+arf-pattern-examples
+Copyright 2026 Juan D. Petter
+
+This product includes software developed as an independent public reference
+implementation of a deterministic governance pattern.
+
+It does not contain ARF AI's proprietary decision engine, authority system,
+execution admission protocol, or enterprise actuators. "ARF AI" is referenced
+descriptively; this notice grants no trademark rights (see section 6 of the
+Apache License, Version 2.0).

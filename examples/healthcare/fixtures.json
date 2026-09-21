@@ -1,0 +1,92 @@
+{
+  "_comment": "Illustrative only -- invented codes and criteria. Not medical, clinical, legal or regulatory advice.",
+  "cases": [
+    {
+      "name": "supported request with documentation",
+      "proposal": {
+        "procedure_code": "PROC-MRI-LUMBAR",
+        "diagnosis_code": "DX-LBP-CHRONIC",
+        "member": {
+          "coverage_active": true
+        },
+        "documentation": {
+          "conservative_therapy_weeks": 8
+        }
+      },
+      "context": {},
+      "expect": "APPROVE",
+      "because": "diagnosis supports the procedure and the required field is present"
+    },
+    {
+      "name": "diagnosis does not support the procedure",
+      "proposal": {
+        "procedure_code": "PROC-KNEE-ARTHRO",
+        "diagnosis_code": "DX-LBP-CHRONIC",
+        "member": {
+          "coverage_active": true
+        },
+        "documentation": {
+          "imaging_report": "present"
+        }
+      },
+      "context": {},
+      "expect": "DENY",
+      "because": "a lumbar diagnosis does not justify knee arthroscopy"
+    },
+    {
+      "name": "coverage not active",
+      "proposal": {
+        "procedure_code": "PROC-MRI-LUMBAR",
+        "diagnosis_code": "DX-LBP-CHRONIC",
+        "member": {
+          "coverage_active": false
+        },
+        "documentation": {
+          "conservative_therapy_weeks": 8
+        }
+      },
+      "context": {},
+      "expect": "DENY",
+      "because": "outside the coverage window"
+    },
+    {
+      "name": "documentation incomplete",
+      "proposal": {
+        "procedure_code": "PROC-MRI-LUMBAR",
+        "diagnosis_code": "DX-LBP-CHRONIC",
+        "member": {
+          "coverage_active": true
+        },
+        "documentation": {}
+      },
+      "context": {},
+      "expect": "ESCALATE",
+      "because": "a filing gap is an unanswered question, not an ineligible request -- denying here would refuse care for paperwork"
+    },
+    {
+      "name": "procedure outside the ruleset",
+      "proposal": {
+        "procedure_code": "PROC-UNLISTED",
+        "diagnosis_code": "DX-LBP-CHRONIC",
+        "member": {
+          "coverage_active": true
+        }
+      },
+      "context": {},
+      "expect": "ESCALATE",
+      "because": "no deterministic criteria exist, so neither approval nor denial is warranted"
+    },
+    {
+      "name": "diagnosis missing",
+      "proposal": {
+        "procedure_code": "PROC-SLEEP-STUDY",
+        "member": {
+          "coverage_active": true
+        }
+      },
+      "context": {},
+      "expect": "ESCALATE",
+      "because": "the rule cannot be applied to an absent input"
+    }
+  ]
+}
