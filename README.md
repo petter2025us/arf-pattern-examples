@@ -19,12 +19,11 @@ agent proposes an action
       execute                   ← only on APPROVE
 ```
 
-The core claim is that this pipeline does not change between domains. Only the redlines do. Four worked examples run through the identical engine and the identical test runner:
+The core claim is that this pipeline does not change between domains. Only the redlines do. Three worked examples run through the identical engine and the identical test runner:
 
 | Domain | The proposed action | What the redlines are about |
 |---|---|---|
 | **[infrastructure](examples/infrastructure/)** | "Delete this production volume" | Reversibility, blast radius, environment, approval |
-| [solar](examples/solar/) | "Send this proposal to this customer" | Claims that are unsubstantiable *for this customer* |
 | [healthcare](examples/healthcare/) | "Approve this prior authorization" | Eligibility rules that must not be a model's judgment call |
 | [lending](examples/lending/) | "Extend this offer at these terms" | Rate ceilings, prohibited fees, affordability |
 
@@ -122,15 +121,13 @@ docs/
   design-rationale.md        Why the pattern is shaped this way
 ```
 
-`examples/solar/policy.rego` expresses the same solar redlines in Rego, to show the pattern does not depend on a policy language. The Python policy is what the tests run.
-
 ## Two bugs worth keeping
 
-Both are in the repository because a pattern library that hides its own near-misses reads as marketing.
+Both were real defects in this repository's own policy code, caught by its own fixtures. They are written down rather than quietly deleted, because a pattern library that hides its near-misses reads as marketing.
 
-**An over-broad redline is not "safely strict."** The first guarantee detector flagged any mention of a dollar sign or "30%". That would have blocked the exact hedged rewrite the policy exists to produce — *"you may qualify for up to a 30% Federal ITC, depending on your personal tax liability"* mentions a percentage and guarantees nothing. Fixed by matching phrases that assert certainty rather than any adjacent number. An over-broad rule trains everyone around it to route past the gate.
+**An over-broad redline is not "safely strict."** A detector for unsupportable guarantees that fires on any currency symbol or percentage will also block the hedged, qualified phrasing the policy exists to produce - a sentence can name a number and promise nothing. The fix is to match the phrases that assert certainty, not the numbers sitting next to them. An over-broad rule trains everyone around it to route past the gate, which costs more than the rule ever saved.
 
-**A pattern bug fails open, and silence is the dangerous direction.** The full-bill-elimination regex ended in `\b` — but `100%` ends in a non-word character, so there is no word boundary there and the branch never matched anything. The test suite caught it on the first run. In a deployment without that fixture, it would have looked like a working redline while permitting every claim it was written to stop.
+**A pattern bug fails open, and silence is the dangerous direction.** A redline whose regex ended in `\b` matched nothing at all, because the token it was meant to catch ended in `%` - a non-word character, so there is no word boundary there for `\b` to find. A rule that matches nothing is indistinguishable from a rule with nothing to catch: it reports success forever. Write at least one fixture that each rule must **catch**, not only fixtures it must permit.
 
 ## What this is not
 

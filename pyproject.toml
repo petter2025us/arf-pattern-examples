@@ -7,8 +7,8 @@ license = { text = "Apache-2.0" }
 # No runtime dependencies, on purpose. Everything here runs on the standard
 # library so the examples execute offline with no API key, no network and no
 # policy-engine binary. `requests` was dropped with the OPA HTTP client it
-# served -- examples/solar/policy.rego stays as an illustration that the
-# pattern does not depend on a policy language, but nothing evaluates it here.
+# served; `governance_core/external_policy.py` now covers delegation to an
+# authoritative engine without taking on a transport dependency.
 dependencies = []
 
 [project.optional-dependencies]

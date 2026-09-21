@@ -8,8 +8,8 @@ deterministic policy decides whether it executes.
 
 A `Decision` carries the evidence needed to explain and reproduce itself.
 An outcome on its own is not auditable: six months later, "DENY" tells a
-reviewer nothing, while "DENY, policy `solar.claims` v3, because
-TAX_GUARANTEE_TO_ZERO_LIABILITY, on this exact proposal" tells them
+reviewer nothing, while "DENY, policy `lending.offer` v3, because
+APR_CEILING_EXCEEDED, on this exact proposal" tells them
 everything. The hashes are what make a replay checkable -- feed the same
 proposal and context to the same policy version and you must get the same
 outcome.

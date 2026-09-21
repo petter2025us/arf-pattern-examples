@@ -156,9 +156,9 @@ The `because` field is not decoration. A fixture whose expectation nobody can ex
 
 ## Things that will bite you
 
-**An over-broad rule is not a safe rule.** A redline that also blocks the compliant output trains everyone around it to route past the gate. The solar example documents a live instance: a guarantee detector that would have blocked the exact hedged rewrite it existed to produce.
+**An over-broad rule is not a safe rule.** A redline that also blocks the compliant output trains everyone around it to route past the gate. The README documents a live instance from this repository's own history: a guarantee detector that would have blocked the exact hedged rewrite it existed to produce.
 
-**A pattern bug fails open.** A regex that matches nothing looks identical to a redline with nothing to catch. The solar example documents that too — a stray `\b` after `100%` silently disabled a branch. Write at least one fixture that your rule must **catch**, not only fixtures it must permit.
+**A pattern bug fails open.** A regex that matches nothing looks identical to a redline with nothing to catch. The README documents that too - a trailing `\b` after a token ending in `%` silently disabled a branch, because a non-word character offers no word boundary to match. Write at least one fixture that your rule must **catch**, not only fixtures it must permit.
 
 **Version your policy.** `policy_version` is recorded in every decision. Bump it on any rule change, or a replay that disagrees cannot distinguish *the policy changed* from *the answer changed*.
 

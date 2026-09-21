@@ -1,9 +1,9 @@
-"""One runner, four domains.
+"""One runner, three domains.
 
 Every domain's `test_policy.py` calls this with its own policy and its own
 fixtures. That is the claim the repository is making, made executable: the
-pipeline does not change between solar sales and infrastructure change
-control. Only the redlines do.
+pipeline does not change between a lending offer and an infrastructure
+change. Only the redlines do.
 
 The runner drives the real `GovernanceEngine`, not the policy in isolation,
 so each domain test also exercises decision -> audit append -> execute and
