@@ -60,6 +60,24 @@ Not *execute, then log if it worked*. Every crash, timeout and process kill betw
 
 **This is an educational simplification.** ARF's real execution-control protocol is considerably stronger: the authorization to execute is minted only from a durably committed audit entry, it is single-use, its consumption is an atomic compare-and-swap against durable state, and an execution whose outcome is unknown lands in a reconcilable state rather than being retried. None of that is reproduced here. What is reproduced is the ordering principle, which is portable, and which most systems get wrong in the cheap direction.
 
+## An unreachable authority is not a permissive one
+
+When the governing policy lives in an external engine — OPA, Cedar, a policy service — the interesting question is not the happy path. It is what happens when that engine is unreachable.
+
+The tempting answer is to keep a local mirror of the rules and evaluate against it so the system stays available. `governance_core/external_policy.py` refuses to do that, and the refusal is the point:
+
+- Unreachable authority → **`ESCALATE`** (default) or **`DENY`** (strict).
+- `on_unavailable=APPROVE` is **rejected by the constructor**. There is no configuration that turns a policy-engine outage into a permission, because a flag that can do that will eventually be set.
+- No local evaluator is consulted. Not as a fallback, not "just this once".
+
+A local mirror holds the rules as of the last sync; the authoritative engine holds the rules as they are. They differ exactly when it matters — after a policy was tightened and before the mirror caught up. Falling back answers a question nobody asked (*what would the old rules have said?*) and returns it as though it were the answer to *what do the rules say?*. An outage in the policy engine silently becomes an outage in enforcement.
+
+`tests/test_fail_closed.py` proves the local evaluator is never consulted, using a spy — because the substitution would be **invisible in the outcome** and is only visible in the call record. A paired control wires the "helpful" fallback up deliberately and shows the spy catches it, so the main test's silence is evidence rather than an absence.
+
+> This repository's own earlier version had exactly this defect: an OPA client that fell back to a local Python evaluator when the sidecar was unreachable, with `fail_closed=True` as opt-in. The default was fail-open. It is documented here rather than quietly removed, because it is the most copyable mistake in the whole pattern.
+
+A local Python policy is still perfectly usable — as *the* policy, chosen explicitly, for development and for every example in this repository. What it may never be is a hidden understudy that walks on when the real one is unavailable.
+
 ## The audit trail, demonstrated
 
 Each entry contains the hash of the entry before it. Changing any past entry changes its hash, which breaks every hash after it.
@@ -91,6 +109,7 @@ governance_core/
   policy_interface.py The Policy protocol — the one thing a domain implements
   audit.py            Hash-chained log: InMemoryAuditLog, FileAuditLog
   engine.py           The interceptor, and the optional revision loop
+  external_policy.py  Delegation to an authoritative engine, fail-closed
   llm_adapter.py      Where a proposal generator plugs in
 
 examples/<domain>/

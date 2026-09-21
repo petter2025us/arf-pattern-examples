@@ -8,6 +8,11 @@ from governance_core.audit import (
     chain_hash,
 )
 from governance_core.decision import Decision, Outcome, canonical_json, decide, digest
+from governance_core.external_policy import (
+    AuthoritativePolicyUnavailable,
+    ExternalPolicy,
+    ExternalPolicyClient,
+)
 from governance_core.engine import (
     Executor,
     GovernanceEngine,
@@ -19,8 +24,11 @@ from governance_core.policy_interface import Policy
 
 __all__ = [
     "AuditLog",
+    "AuthoritativePolicyUnavailable",
     "Decision",
     "Executor",
+    "ExternalPolicy",
+    "ExternalPolicyClient",
     "FileAuditLog",
     "GENESIS",
     "GovernanceEngine",
